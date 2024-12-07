@@ -24,7 +24,7 @@ public class PaymentsControllerTests
     private readonly Mock<IOptions<CurrencyCodes>> _mockCurrencyCodes = new();
     private readonly PaymentsController _paymentsController;
 
-    private readonly PostPaymentRequest _postPaymentRequest = new PostPaymentRequest
+    private readonly PostPaymentRequest _postPaymentRequest = new()
     {
         CardNumber = "1234098712340987",
         ExpiryMonth = 12,
@@ -34,7 +34,7 @@ public class PaymentsControllerTests
         Cvv = 123
     };
 
-    private GetPaymentResponse _getPaymentResponse = new GetPaymentResponse
+    private readonly GetPaymentResponse _getPaymentResponse = new()
     {
         Id = Guid.NewGuid(),
         Amount = 100,
@@ -47,6 +47,7 @@ public class PaymentsControllerTests
 
     public PaymentsControllerTests()
     {
+        Setup();
         _paymentsController = new PaymentsController(_mockPaymentsRepository.Object, _mockBankClient.Object,
             _mockCurrencyCodes.Object);
     }
@@ -64,7 +65,7 @@ public class PaymentsControllerTests
 
         _mockCurrencyCodes
             .Setup(x => x.Value)
-            .Returns(new CurrencyCodes { Codes = new List<string>() { "GBP", "USD", "EUR" } });
+            .Returns(new CurrencyCodes { Codes = new List<string> { "GBP", "USD", "EUR" } });
     }
 
     [Fact]
@@ -72,7 +73,7 @@ public class PaymentsControllerTests
     {
         // Arrange
         Setup();
-
+        
         // Act
         var result = await _paymentsController.PostPaymentAsync(_postPaymentRequest, default);
 
@@ -84,19 +85,20 @@ public class PaymentsControllerTests
             Currency = _postPaymentRequest.Currency,
             ExpiryMonth = _postPaymentRequest.ExpiryMonth,
             ExpiryYear = _postPaymentRequest.ExpiryYear,
-            Amount = _postPaymentRequest.Amount,
+            Amount = _postPaymentRequest.Amount
         };
 
         // Assert
         Assert.Equal((int)HttpStatusCode.OK, GetStatusCode(result));
-        Assert.NotNull(result.Value);
-        var resultValue = result.Value!;
-        Assert.Equal(resultValue.Status, expectedResult.Status);
-        Assert.Equal(resultValue.CardNumberLastFour, expectedResult.CardNumberLastFour);
-        Assert.Equal(resultValue.Currency, expectedResult.Currency);
-        Assert.Equal(resultValue.ExpiryMonth, expectedResult.ExpiryMonth);
-        Assert.Equal(resultValue.ExpiryYear, expectedResult.ExpiryYear);
-        Assert.Equal(resultValue.Amount, expectedResult.Amount);
+        Assert.NotNull(result.Result);
+        Assert.NotNull(((OkObjectResult)result.Result!).Value);
+        var resultValue = (PostPaymentResponse)((OkObjectResult)result.Result).Value!;
+        Assert.Equal(expectedResult.Status, resultValue.Status);
+        Assert.Equal(expectedResult.CardNumberLastFour, resultValue.CardNumberLastFour);
+        Assert.Equal(expectedResult.ExpiryMonth, resultValue.ExpiryMonth);
+        Assert.Equal(expectedResult.ExpiryYear, resultValue.ExpiryYear);
+        Assert.Equal(expectedResult.Currency, resultValue.Currency);
+        Assert.Equal(expectedResult.Amount, resultValue.Amount);
     }
 
     [Theory]
@@ -105,16 +107,52 @@ public class PaymentsControllerTests
     [InlineData("12345678901234A")]
     public async Task PostPaymentAsync_ReturnsBadRequest_WhenInvalidCardNumberIsGiven(string cardNumber)
     {
-        
+        // Arrange
+        var paymentRequest = new PostPaymentRequest
+        {
+            CardNumber = cardNumber,
+            ExpiryMonth = _postPaymentRequest.ExpiryMonth,
+            ExpiryYear = _postPaymentRequest.ExpiryYear,
+            Currency = _postPaymentRequest.Currency,
+            Amount = _postPaymentRequest.Amount,
+            Cvv = _postPaymentRequest.Cvv
+        };
+
+        // Act
+        var result = await _paymentsController.PostPaymentAsync(paymentRequest, default);
+
+        // Assert
+        Assert.Equal((int)HttpStatusCode.BadRequest, GetStatusCode(result));
+        Assert.NotNull(result.Result);
+        Assert.NotNull(((BadRequestObjectResult)result.Result!).Value);
+        Assert.Equal("Invalid card number", ((BadRequestObjectResult)result.Result!).Value!.ToString());
     }
 
     [Theory]
     [InlineData(-1)]
-    [InlineData(1)]
+    [InlineData(0)]
     [InlineData(13)]
     public async Task PostPaymentAsync_ReturnsBadRequest_WhenInvalidMonthIsGiven(int month)
     {
-        
+        // Arrange
+        var paymentRequest = new PostPaymentRequest
+        {
+            CardNumber = _postPaymentRequest.CardNumber,
+            ExpiryMonth = month,
+            ExpiryYear = _postPaymentRequest.ExpiryYear,
+            Currency = _postPaymentRequest.Currency,
+            Amount = _postPaymentRequest.Amount,
+            Cvv = _postPaymentRequest.Cvv
+        };
+
+        // Act
+        var result = await _paymentsController.PostPaymentAsync(paymentRequest, default);
+
+        // Assert
+        Assert.Equal((int)HttpStatusCode.BadRequest, GetStatusCode(result));
+        Assert.NotNull(result.Result);
+        Assert.NotNull(((BadRequestObjectResult)result.Result!).Value);
+        Assert.Equal("Invalid expiry month", ((BadRequestObjectResult)result.Result!).Value!.ToString());
     }
 
     [Theory]
@@ -122,13 +160,52 @@ public class PaymentsControllerTests
     [InlineData(12, 2024)]
     public async Task PostPaymentAsync_ReturnsBadRequest_WhenExpiredDateIsGiven(int month, int year)
     {
-        
+        // Arrange
+        var paymentRequest = new PostPaymentRequest
+        {
+            CardNumber = _postPaymentRequest.CardNumber,
+            ExpiryMonth = month,
+            ExpiryYear = year,
+            Currency = _postPaymentRequest.Currency,
+            Amount = _postPaymentRequest.Amount,
+            Cvv = _postPaymentRequest.Cvv
+        };
+
+        // Act
+        var result = await _paymentsController.PostPaymentAsync(paymentRequest, default);
+
+        // Assert
+        Assert.Equal((int)HttpStatusCode.BadRequest, GetStatusCode(result));
+        Assert.NotNull(result.Result);
+        Assert.NotNull(((BadRequestObjectResult)result.Result!).Value);
+        Assert.Equal("Card is expired", ((BadRequestObjectResult)result.Result!).Value!.ToString());
     }
 
-    [Fact]
-    public async Task PostPaymentAsync_ReturnsBadRequest_WhenInvalidCurrencyIsGiven()
+    [Theory]
+    [InlineData("")]
+    [InlineData("ABC")]
+    [InlineData("GBPGBP")]
+    public async Task PostPaymentAsync_ReturnsBadRequest_WhenInvalidCurrencyIsGiven(string currency)
     {
-        
+        // Arrange
+        var paymentRequest = new PostPaymentRequest
+        {
+            CardNumber = _postPaymentRequest.CardNumber,
+            ExpiryMonth = _postPaymentRequest.ExpiryMonth,
+            ExpiryYear = _postPaymentRequest.ExpiryYear,
+            Currency = currency,
+            Amount = _postPaymentRequest.Amount,
+            Cvv = _postPaymentRequest.Cvv
+        };
+
+        // Act
+        var result = await _paymentsController.PostPaymentAsync(paymentRequest, default);
+
+        // Assert
+        Assert.Equal((int)HttpStatusCode.BadRequest, GetStatusCode(result));
+        Assert.NotNull(result.Result);
+        Assert.NotNull(((BadRequestObjectResult)result.Result!).Value);
+        Assert.Equal("Invalid currency", ((BadRequestObjectResult)result.Result!).Value!.ToString());
     }
 
     [Theory]
@@ -137,31 +214,98 @@ public class PaymentsControllerTests
     [InlineData(12345)]
     public async Task PostPaymentAsync_ReturnsBadRequest_WhenInvalidCvvIsGiven(int cvv)
     {
-        
+        // Arrange
+        var paymentRequest = new PostPaymentRequest
+        {
+            CardNumber = _postPaymentRequest.CardNumber,
+            ExpiryMonth = _postPaymentRequest.ExpiryMonth,
+            ExpiryYear = _postPaymentRequest.ExpiryYear,
+            Currency = _postPaymentRequest.Currency,
+            Amount = _postPaymentRequest.Amount,
+            Cvv = cvv
+        };
+
+        // Act
+        var result = await _paymentsController.PostPaymentAsync(paymentRequest, default);
+
+        // Assert
+        Assert.Equal((int)HttpStatusCode.BadRequest, GetStatusCode(result));
+        Assert.NotNull(result.Result);
+        Assert.NotNull(((BadRequestObjectResult)result.Result!).Value);
+        Assert.Equal("Invalid CVV", ((BadRequestObjectResult)result.Result!).Value!.ToString());
     }
 
     [Fact]
     public async Task PostPaymentAsync_ReturnsAuthorizedStatus_WhenValidPaymentIsSent()
     {
+        // Arrange
+        Setup(paymentStatus: PaymentStatus.Authorized);
         
+        // Act
+        var result = await _paymentsController.PostPaymentAsync(_postPaymentRequest, default);
+
+        // Assert
+        Assert.Equal((int)HttpStatusCode.OK, GetStatusCode(result));
+        Assert.NotNull(result.Result);
+        Assert.NotNull(((OkObjectResult)result.Result!).Value);
+        var resultValue = (PostPaymentResponse)((OkObjectResult)result.Result).Value!;
+        Assert.Equal(PaymentStatus.Authorized.ToString(), resultValue.Status);
     }
 
     [Fact]
     public async Task PostPaymentAsync_ReturnsDeclineStatus_WhenBankDeclinesCard()
     {
+        // Arrange
+        Setup(paymentStatus: PaymentStatus.Declined);
         
+        // Act
+        var result = await _paymentsController.PostPaymentAsync(_postPaymentRequest, default);
+
+        // Assert
+        Assert.Equal((int)HttpStatusCode.OK, GetStatusCode(result));
+        Assert.NotNull(result.Result);
+        Assert.NotNull(((OkObjectResult)result.Result!).Value);
+        var resultValue = (PostPaymentResponse)((OkObjectResult)result.Result).Value!;
+        Assert.Equal(PaymentStatus.Declined.ToString(), resultValue.Status);
     }
 
     [Fact]
     public async Task PostPaymentAsync_ReturnsRejectedStatus_WhenBankRejectsCard()
     {
+        // Arrange
+        Setup(paymentStatus: PaymentStatus.Rejected);
         
+        // Act
+        var result = await _paymentsController.PostPaymentAsync(_postPaymentRequest, default);
+
+        // Assert
+        Assert.Equal((int)HttpStatusCode.OK, GetStatusCode(result));
+        Assert.NotNull(result.Result);
+        Assert.NotNull(((OkObjectResult)result.Result!).Value);
+        var resultValue = (PostPaymentResponse)((OkObjectResult)result.Result).Value!;
+        Assert.Equal(PaymentStatus.Rejected.ToString(), resultValue.Status);
     }
 
-    [Fact]
-    public async Task GetPaymentAsync_ReturnsPayment_WhenPaymentExists()
+    [Theory, AutoData]
+    public async Task GetPaymentAsync_ReturnsPayment_WhenPaymentExists(Guid paymentId)
     {
+        // Arrange
+        Setup(paymentResponse: _getPaymentResponse);
         
+        // Act
+        var result = await _paymentsController.GetPaymentAsync(paymentId, default);
+        
+        // Assert
+        Assert.Equal((int)HttpStatusCode.OK, GetStatusCode(result));
+        Assert.NotNull(result.Result);
+        Assert.NotNull(((OkObjectResult)result.Result!).Value);
+        var resultValue = (GetPaymentResponse)((OkObjectResult)result.Result).Value!;
+        Assert.Equal(_getPaymentResponse.Status, resultValue.Status);
+        Assert.Equal(_getPaymentResponse.CardNumberLastFour, resultValue.CardNumberLastFour);
+        Assert.Equal(_getPaymentResponse.ExpiryMonth, resultValue.ExpiryMonth);
+        Assert.Equal(_getPaymentResponse.ExpiryYear, resultValue.ExpiryYear);
+        Assert.Equal(_getPaymentResponse.Currency, resultValue.Currency);
+        Assert.Equal(_getPaymentResponse.Amount, resultValue.Amount);
     }
 
     [Theory, AutoData]
@@ -176,7 +320,7 @@ public class PaymentsControllerTests
         // Assert
         Assert.Equal((int)HttpStatusCode.NotFound, GetStatusCode(result));
     }
-
+    
     private static int? GetStatusCode<T>(ActionResult<T?> actionResult)
     {
         IConvertToActionResult convertToActionResult = actionResult; // ActionResult implements IConvertToActionResult

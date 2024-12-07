@@ -43,7 +43,7 @@ public class PaymentsController(
         if (!_currencyCodes.Codes.Contains(request.Currency))
             return BadRequest("Invalid currency");
 
-        if (request.Cvv.ToString().Length is > 4 or < 3)
+        if (request.Cvv.ToString().Length is > 4 or < 3 || request.Cvv < 0)
             return BadRequest("Invalid CVV");
 
         var guid = Guid.NewGuid();
