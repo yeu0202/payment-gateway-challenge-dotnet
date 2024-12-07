@@ -1,12 +1,15 @@
-﻿namespace PaymentGateway.Api.Models.Responses;
+﻿using JetBrains.Annotations;
 
+namespace PaymentGateway.Api.Models.Responses;
+
+[PublicAPI]
 public class PostPaymentResponse
 {
-    public Guid Id { get; set; }
-    public PaymentStatus Status { get; set; }
-    public int CardNumberLastFour { get; set; }
-    public int ExpiryMonth { get; set; }
-    public int ExpiryYear { get; set; }
-    public string Currency { get; set; }
-    public int Amount { get; set; }
+    public Guid Id { get; init; }
+    public required string Status { get; init; }
+    public int CardNumberLastFour { get; init; }
+    public int ExpiryMonth { get; init; }
+    public int ExpiryYear { get; init; }
+    public required string Currency { get; init; }
+    public int Amount { get; init; }
 }
