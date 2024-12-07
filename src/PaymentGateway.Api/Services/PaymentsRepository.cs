@@ -2,17 +2,35 @@
 
 namespace PaymentGateway.Api.Services;
 
-public class PaymentsRepository
+public interface IPaymentsRepository
 {
-    public List<PostPaymentResponse> Payments = new();
-    
-    public void Add(PostPaymentResponse payment)
+    public void Add(PostPaymentResponse paymentResponse);
+    public Task<GetPaymentResponse?> Get(Guid id, CancellationToken cancellationToken);
+}
+
+public class PaymentsRepository : IPaymentsRepository
+{
+    // This is the database
+    private readonly List<GetPaymentResponse> _payments = [];
+
+    public void Add(PostPaymentResponse paymentResponse)
     {
-        Payments.Add(payment);
+        var paymentRecord = new GetPaymentResponse
+        {
+            Id = paymentResponse.Id,
+            Status = paymentResponse.Status,
+            CardNumberLastFour = paymentResponse.CardNumberLastFour,
+            ExpiryMonth = paymentResponse.ExpiryMonth,
+            ExpiryYear = paymentResponse.ExpiryYear,
+            Currency = paymentResponse.Currency,
+            Amount = paymentResponse.Amount
+        };
+
+        _payments.Add(paymentRecord);
     }
 
-    public PostPaymentResponse Get(Guid id)
+    public async Task<GetPaymentResponse?> Get(Guid id, CancellationToken cancellationToken)
     {
-        return Payments.FirstOrDefault(p => p.Id == id);
+        return _payments.FirstOrDefault(p => p.Id == id);
     }
 }
