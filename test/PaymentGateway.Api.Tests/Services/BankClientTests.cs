@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Moq;
@@ -25,13 +26,14 @@ public class BankClientTests
         ExpiryYear = 2021,
         Currency = "GBP",
         Amount = 1,
-        Cvv = 123
+        Cvv = "123"
     };
 
     public BankClientTests()
     {
+        var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<BankClient>();
         _bankClient = new BankClient(new HttpClient(_mockHttpClientHandler.Object),
-            new OptionsWrapper<BankConfig>(new BankConfig { BankUrl = "http://test" }));
+            new OptionsWrapper<BankConfig>(new BankConfig { BankUrl = "http://test" }), logger);
     }
 
     [Fact]

@@ -9,5 +9,5 @@ public class PostBankRequest
     public required string ExpiryDate { get; init; }
     public required string Currency { get; init; }
     public int Amount { get; init; }
-    public int Cvv { get; init; }
+    public required string Cvv { get; init; }
 }

@@ -43,7 +43,7 @@ public class PaymentsController(
         if (!_currencyCodes.Codes.Contains(request.Currency))
             return BadRequest("Invalid currency");
 
-        if (request.Cvv.ToString().Length is > 4 or < 3 || request.Cvv < 0)
+        if (request.Cvv.Length is > 4 or < 3 || int.Parse(request.Cvv) < 0)
             return BadRequest("Invalid CVV");
 
         var guid = Guid.NewGuid();
@@ -55,7 +55,7 @@ public class PaymentsController(
         {
             Id = guid,
             Status = bankResponse.ToString(),
-            CardNumberLastFour = int.Parse(request.CardNumber[^4..]),
+            CardNumberLastFour = request.CardNumber[^4..],
             ExpiryMonth = request.ExpiryMonth,
             ExpiryYear = request.ExpiryYear,
             Currency = request.Currency,

@@ -1,11 +1,7 @@
-﻿using JetBrains.Annotations;
+namespace PaymentGateway.Api.Models;
 
-namespace PaymentGateway.Api.Models.Responses;
-
-[PublicAPI]
-public class GetPaymentResponse
+public class PaymentRecord
 {
-    public Guid Id { get; init; }
     public required string Status { get; init; }
     public required string CardNumberLastFour { get; init; }
     public int ExpiryMonth { get; init; }

@@ -31,14 +31,14 @@ public class PaymentsControllerTests
         ExpiryYear = 2030,
         Currency = "GBP",
         Amount = 100,
-        Cvv = 123
+        Cvv = "123"
     };
 
     private readonly GetPaymentResponse _getPaymentResponse = new()
     {
         Id = Guid.NewGuid(),
         Amount = 100,
-        CardNumberLastFour = 1234,
+        CardNumberLastFour = "1234",
         Currency = "GBP",
         ExpiryMonth = 12,
         ExpiryYear = 2030,
@@ -81,7 +81,7 @@ public class PaymentsControllerTests
         {
             Id = Guid.NewGuid(),
             Status = PaymentStatus.Authorized.ToString(),
-            CardNumberLastFour = int.Parse(_postPaymentRequest.CardNumber[^4..]),
+            CardNumberLastFour = _postPaymentRequest.CardNumber[^4..],
             Currency = _postPaymentRequest.Currency,
             ExpiryMonth = _postPaymentRequest.ExpiryMonth,
             ExpiryYear = _postPaymentRequest.ExpiryYear,
@@ -209,10 +209,10 @@ public class PaymentsControllerTests
     }
 
     [Theory]
-    [InlineData(-111)]
-    [InlineData(99)]
-    [InlineData(12345)]
-    public async Task PostPaymentAsync_ReturnsBadRequest_WhenInvalidCvvIsGiven(int cvv)
+    [InlineData("-111")]
+    [InlineData("99")]
+    [InlineData("12345")]
+    public async Task PostPaymentAsync_ReturnsBadRequest_WhenInvalidCvvIsGiven(string cvv)
     {
         // Arrange
         var paymentRequest = new PostPaymentRequest
