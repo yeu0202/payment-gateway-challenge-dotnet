@@ -10,7 +10,7 @@ public class PaymentsRepositoryTests
     {
         Id = Guid.NewGuid(),
         Status = PaymentStatus.Authorized.ToString(),
-        CardNumberLastFour = 1234,
+        CardNumberLastFour = "1234",
         ExpiryMonth = 12,
         ExpiryYear = 2021,
         Currency = "GBP",

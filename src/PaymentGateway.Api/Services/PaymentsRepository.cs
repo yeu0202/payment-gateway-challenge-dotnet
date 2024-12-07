@@ -1,4 +1,7 @@
-﻿using PaymentGateway.Api.Models.Responses;
+﻿using System.Collections.Concurrent;
+
+using PaymentGateway.Api.Models;
+using PaymentGateway.Api.Models.Responses;
 
 namespace PaymentGateway.Api.Services;
 
@@ -11,13 +14,12 @@ public interface IPaymentsRepository
 public class PaymentsRepository : IPaymentsRepository
 {
     // This is the database
-    private readonly List<GetPaymentResponse> _payments = [];
+    private readonly ConcurrentDictionary<Guid, PaymentRecord> _payments = [];
 
     public void Add(PostPaymentResponse paymentResponse)
     {
-        var paymentRecord = new GetPaymentResponse
+        var paymentRecord = new PaymentRecord
         {
-            Id = paymentResponse.Id,
             Status = paymentResponse.Status,
             CardNumberLastFour = paymentResponse.CardNumberLastFour,
             ExpiryMonth = paymentResponse.ExpiryMonth,
@@ -26,11 +28,24 @@ public class PaymentsRepository : IPaymentsRepository
             Amount = paymentResponse.Amount
         };
 
-        _payments.Add(paymentRecord);
+        _payments.TryAdd(paymentResponse.Id, paymentRecord);
     }
 
     public async Task<GetPaymentResponse?> Get(Guid id, CancellationToken cancellationToken)
     {
-        return _payments.FirstOrDefault(p => p.Id == id);
+        var isRecordAvailable = _payments.TryGetValue(id, out var storedRecord);
+        if (!isRecordAvailable || storedRecord == null)
+            return null;
+        
+        return new GetPaymentResponse()
+        {
+            Id = id,
+            Status = storedRecord.Status,
+            CardNumberLastFour = storedRecord.CardNumberLastFour,
+            ExpiryMonth = storedRecord.ExpiryMonth,
+            ExpiryYear = storedRecord.ExpiryYear,
+            Currency = storedRecord.Currency,
+            Amount = storedRecord.Amount
+        };
     }
 }

@@ -15,7 +15,7 @@ public interface IBankClient
     public Task<PaymentStatus> PostPayment(PostPaymentRequest request, CancellationToken cancellationToken);
 }
 
-public class BankClient(HttpClient httpClient, IOptions<BankConfig> options) : IBankClient
+public class BankClient(HttpClient httpClient, IOptions<BankConfig> options, ILogger<BankClient> logger) : IBankClient
 {
     public async Task<PaymentStatus> PostPayment(PostPaymentRequest request, CancellationToken cancellationToken)
     {
@@ -63,7 +63,7 @@ public class BankClient(HttpClient httpClient, IOptions<BankConfig> options) : I
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            logger.LogCritical("Bank request ended in failure with {Exception}", ex.Message);
             return PaymentStatus.Rejected;
         }
     }

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using PaymentGateway.Api.Controllers;
@@ -28,7 +29,7 @@ public class PaymentControllerTests
         ExpiryDate = "04/2025",
         Currency = "GBP",
         Amount = 100,
-        Cvv = 123
+        Cvv = "123"
     };
 
     private const int UnauthorizedMonth = 1;
@@ -40,15 +41,16 @@ public class PaymentControllerTests
         ExpiryDate = "01/2026",
         Currency = "USD",
         Amount = 60000,
-        Cvv = 456
+        Cvv = "456"
     };
 
     private static HttpClient Setup()
     {
         var paymentsRepository = new PaymentsRepository();
         var httpClient = new HttpClient();
+        var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<BankClient>();
         var bankClient = new BankClient(httpClient,
-            new OptionsWrapper<BankConfig>(new BankConfig { BankUrl = "http://localhost:8080" }));
+            new OptionsWrapper<BankConfig>(new BankConfig { BankUrl = "http://localhost:8080" }), logger);
 
         var webApplicationFactory = new WebApplicationFactory<PaymentsController>();
         var client = webApplicationFactory.WithWebHostBuilder(builder =>
@@ -74,7 +76,7 @@ public class PaymentControllerTests
             ExpiryYear = _random.Next(2023, 2030),
             ExpiryMonth = _random.Next(1, 12),
             Amount = _random.Next(1, 10000),
-            CardNumberLastFour = _random.Next(1111, 9999),
+            CardNumberLastFour = _random.Next(1111, 9999).ToString(),
             Currency = "GBP"
         };
 
@@ -115,7 +117,7 @@ public class PaymentControllerTests
         {
             Id = Guid.NewGuid(),
             Status = PaymentStatus.Authorized.ToString(),
-            CardNumberLastFour = Convert.ToInt32(_authorizedPostBankRequest.CardNumber[^4..]),
+            CardNumberLastFour = _authorizedPostBankRequest.CardNumber[^4..],
             ExpiryMonth = AuthorizedMonth,
             ExpiryYear = AuthorizedYear,
             Currency = _authorizedPostBankRequest.Currency,
@@ -150,7 +152,7 @@ public class PaymentControllerTests
         {
             Id = Guid.NewGuid(),
             Status = PaymentStatus.Declined.ToString(),
-            CardNumberLastFour = Convert.ToInt32(_unauthorizedPostBankRequest.CardNumber[^4..]),
+            CardNumberLastFour = _unauthorizedPostBankRequest.CardNumber[^4..],
             ExpiryMonth = UnauthorizedMonth,
             ExpiryYear = UnauthorizedYear,
             Currency = _unauthorizedPostBankRequest.Currency,
@@ -179,13 +181,13 @@ public class PaymentControllerTests
             ExpiryYear = 2300,
             Currency = "GBP",
             Amount = 13579,
-            Cvv = 123
+            Cvv = "123"
         };
         var expectedResult = new PostPaymentResponse
         {
             Id = Guid.NewGuid(),
             Status = PaymentStatus.Rejected.ToString(),
-            CardNumberLastFour = Convert.ToInt32(paymentRequest.CardNumber[^4..]),
+            CardNumberLastFour = paymentRequest.CardNumber[^4..],
             ExpiryMonth = paymentRequest.ExpiryMonth,
             ExpiryYear = paymentRequest.ExpiryYear,
             Currency = paymentRequest.Currency,
